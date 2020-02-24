@@ -1,22 +1,22 @@
-From ed397acd16f8624aaabebaf67b7f09a4658edd5b Mon Sep 17 00:00:00 2001
-From: danielhk <daniel.p6800@gmail.com>
-Date: Sat, 3 Mar 2018 20:45:49 +0800
-Subject: [PATCH 4/6] MTK Camera patch
+From be4c7a2152ef855898beb9e671d26ce8d917da7b Mon Sep 17 00:00:00 2001
+From: bilux <i.bilux@gmail.com>
+Date: Thu, 30 Jan 2020 18:16:00 +0100
+Subject: [PATCH] MTK Camera patch
 
 1. libcamera_parameters_mtk in device tree for extra camera parameters.
 2. Add deprecated function definitions which the old blobs required.
 3. Handle extra MTK camera messages
 
-Change-Id: I6063a61adeffd7f296fce9b5ae37a22aa5824e32
+Signed-off-by: bilux <i.bilux@gmail.com>
 ---
- camera/cameraserver/cameraserver.rc                |  2 +-
- media/libstagefright/foundation/Android.bp         |  1 +
- .../libstagefright/foundation/MediaBufferGroup.cpp | 10 +++
- .../include/media/stagefright/MediaBufferGroup.h   | 11 +++
- services/camera/libcameraservice/Android.mk        |  2 +-
- .../camera/libcameraservice/api1/CameraClient.cpp  | 94 +++++++++++++++++++++-
- .../camera/libcameraservice/api1/CameraClient.h    |  5 ++
- 7 files changed, 122 insertions(+), 3 deletions(-)
+ camera/cameraserver/cameraserver.rc           |  2 +-
+ media/libstagefright/foundation/Android.bp    |  1 +
+ .../foundation/MediaBufferGroup.cpp           | 10 ++
+ .../media/stagefright/MediaBufferGroup.h      | 11 +++
+ services/camera/libcameraservice/Android.mk   |  2 +-
+ .../libcameraservice/api1/CameraClient.cpp    | 93 +++++++++++++++++++
+ .../libcameraservice/api1/CameraClient.h      |  5 +
+ 7 files changed, 122 insertions(+), 2 deletions(-)
 
 diff --git a/camera/cameraserver/cameraserver.rc b/camera/cameraserver/cameraserver.rc
 index fea5a1d..08277d6 100644
@@ -116,7 +116,7 @@ index 7629594..0708852 100644
  # Workaround for invalid unused-lambda-capture warning http://b/38349491
  LOCAL_CLANG_CFLAGS += -Wno-error=unused-lambda-capture
 diff --git a/services/camera/libcameraservice/api1/CameraClient.cpp b/services/camera/libcameraservice/api1/CameraClient.cpp
-index 48757ac..d85c4c9 100644
+index 48757ac..90d503c 100644
 --- a/services/camera/libcameraservice/api1/CameraClient.cpp
 +++ b/services/camera/libcameraservice/api1/CameraClient.cpp
 @@ -31,6 +31,13 @@ namespace android {
@@ -133,18 +133,17 @@ index 48757ac..d85c4c9 100644
  static int getCallingPid() {
      return IPCThreadState::self()->getCallingPid();
  }
-@@ -98,7 +105,9 @@ status_t CameraClient::initialize(sp<CameraProviderManager> manager) {
-     // Enable zoom, error, focus, and metadata messages by default
+@@ -99,6 +106,9 @@ status_t CameraClient::initialize(sp<CameraProviderManager> manager) {
      enableMsgType(CAMERA_MSG_ERROR | CAMERA_MSG_ZOOM | CAMERA_MSG_FOCUS |
                    CAMERA_MSG_PREVIEW_METADATA | CAMERA_MSG_FOCUS_MOVE);
--
+ 
 +#ifdef MTK_HARDWARE
 +    enableMsgType(MTK_CAMERA_MSG_EXT_NOTIFY | MTK_CAMERA_MSG_EXT_DATA);
 +#endif
      LOG1("CameraClient::initialize X (pid %d, id %d)", callingPid, mCameraId);
      return OK;
  }
-@@ -801,6 +810,9 @@ void CameraClient::disableMsgType(int32_t msgType) {
+@@ -801,6 +811,9 @@ void CameraClient::disableMsgType(int32_t msgType) {
  
  #define CHECK_MESSAGE_INTERVAL 10 // 10ms
  bool CameraClient::lockIfMessageWanted(int32_t msgType) {
@@ -154,7 +153,7 @@ index 48757ac..d85c4c9 100644
      int sleepCount = 0;
      while (mMsgEnabled & msgType) {
          if (mLock.tryLock() == NO_ERROR) {
-@@ -860,6 +872,24 @@ void CameraClient::notifyCallback(int32_t msgType, int32_t ext1,
+@@ -860,6 +873,24 @@ void CameraClient::notifyCallback(int32_t msgType, int32_t ext1,
  
      if (!client->lockIfMessageWanted(msgType)) return;
  
@@ -179,7 +178,7 @@ index 48757ac..d85c4c9 100644
      switch (msgType) {
          case CAMERA_MSG_SHUTTER:
              // ext1 is the dimension of the yuv picture.
-@@ -885,6 +915,46 @@ void CameraClient::dataCallback(int32_t msgType,
+@@ -885,6 +916,46 @@ void CameraClient::dataCallback(int32_t msgType,
          return;
      }
  
@@ -226,7 +225,7 @@ index 48757ac..d85c4c9 100644
      switch (msgType & ~CAMERA_MSG_PREVIEW_METADATA) {
          case CAMERA_MSG_PREVIEW_FRAME:
              client->handlePreviewData(msgType, dataPtr, metadata);
-@@ -965,6 +1035,28 @@ void CameraClient::handleCallbackTimestampBatch(
+@@ -965,6 +1036,28 @@ void CameraClient::handleCallbackTimestampBatch(
      }
  }
  
@@ -272,5 +271,5 @@ index a0d9d0a..641b6a9 100644
      void                    handlePreviewData(int32_t msgType, const sp<IMemory>& mem,
              camera_frame_metadata_t *metadata);
 -- 
-2.7.4
+2.25.0
 
