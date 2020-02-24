@@ -1,60 +1,49 @@
-From 8aeb010acdc0d0cd8dbe47e090f126e38af0b434 Mon Sep 17 00:00:00 2001
+From 746fa6d293cf8744f473a51a1f4d9e55f8e785d2 Mon Sep 17 00:00:00 2001
 From: bilux <i.bilux@gmail.com>
 Date: Sun, 23 Feb 2020 21:13:01 +0100
 Subject: [PATCH] Add support of YUV color profiles
 
 Signed-off-by: bilux <i.bilux@gmail.com>
 ---
- camera/Android.bp                             |   5 +
+ camera/Android.bp                             |   2 +
  camera/CameraParameters.cpp                   |  17 +
  camera/include/camera/CameraParameters.h      |  13 +
  camera/include/camera/IMetadataCallbacks.h    |  58 ++
  camera/include/camera/MtkCamera.h             | 333 +++++++++
  camera/include/camera/MtkCameraParameters.h   | 651 ++++++++++++++++++
- media/libmedia/Android.bp                     |  33 +
+ media/libmedia/Android.bp                     |   9 +
  media/libmedia/MediaProfiles.cpp              |  25 +-
  media/libmedia/include/media/MediaProfiles.h  |  15 +
  media/libmedia/include/media/mediarecorder.h  |  13 +-
  media/libstagefright/ACodec.cpp               |  22 +-
- media/libstagefright/Android.bp               |  14 +
+ media/libstagefright/Android.bp               |   8 +-
  media/libstagefright/CameraSource.cpp         |  39 ++
  media/libstagefright/MPEG4Writer.cpp          |   6 +
- .../libstagefright/colorconversion/Android.bp |   9 +
+ .../libstagefright/colorconversion/Android.bp |   1 +
  .../colorconversion/ColorConverter.cpp        |  25 +-
- media/libstagefright/foundation/Android.bp    |   9 +-
  .../include/media/stagefright/ACodec.h        |   3 +
  .../include/media/stagefright/CameraSource.h  |   2 +-
- media/libstagefright/omx/Android.bp           |  36 +
+ media/libstagefright/omx/Android.bp           |  18 +
  media/libstagefright/omx/OMXNodeInstance.cpp  |  45 ++
  media/libstagefright/omx/OMXUtils.cpp         |   4 +-
  .../media/stagefright/omx/OMXNodeInstance.h   |   6 +-
  .../libcameraservice/api1/CameraClient.cpp    | 176 +++--
  .../libcameraservice/api1/CameraClient.h      |  20 +
- 25 files changed, 1474 insertions(+), 105 deletions(-)
+ 24 files changed, 1406 insertions(+), 105 deletions(-)
  create mode 100644 camera/include/camera/IMetadataCallbacks.h
  create mode 100644 camera/include/camera/MtkCamera.h
  create mode 100644 camera/include/camera/MtkCameraParameters.h
 
 diff --git a/camera/Android.bp b/camera/Android.bp
-index 58cc622..abb9a68 100644
+index 58cc622..7e22721 100644
 --- a/camera/Android.bp
 +++ b/camera/Android.bp
-@@ -80,6 +80,10 @@ cc_library_shared {
-                     "CameraParameters.cpp",
-                 ],
-             },
-+
-+            uses_mtk_hardware: {
-+             cppflags: ["-DMTK_HARDWARE"],
-+            },
-         },
-     },
-     defaults: ["camera_parameters_defaults"],
-@@ -108,6 +112,7 @@ cc_library_shared {
+@@ -108,6 +108,8 @@ cc_library_shared {
          "-Werror",
          "-Wall",
          "-Wextra",
 +        "-Wno-format",
++        "-DMTK_HARDWARE",
      ],
  
  }
@@ -1192,42 +1181,27 @@ index 0000000..42f0a3f
 +
 +#endif
 diff --git a/media/libmedia/Android.bp b/media/libmedia/Android.bp
-index 0422ad0..9135597 100644
+index 0422ad0..9655784 100644
 --- a/media/libmedia/Android.bp
 +++ b/media/libmedia/Android.bp
-@@ -24,6 +24,13 @@ cc_library {
+@@ -23,6 +23,7 @@ cc_library {
+         "-Werror",
          "-Wno-error=deprecated-declarations",
          "-Wall",
++        "-DMTK_HARDWARE",
      ],
-+    product_variables: {
-+        lineage: {
-+			uses_mtk_hardware: {
-+             cppflags: ["-DMTK_HARDWARE"],
-+            },
-+        },
-+    },
      shared_libs: ["libutils", "liblog", "libgui"],
      header_libs: [
-         "libmedia_headers",
-@@ -109,6 +116,17 @@ cc_defaults {
+@@ -107,6 +108,8 @@ cc_defaults {
+         "-Werror",
+         "-Wno-error=deprecated-declarations",
          "-Wall",
++        "-DMTK_HARDWARE",
++        "-DUSE_LEGACY_MTK_AV_BLOB",
      ],
  
-+    product_variables: {
-+        lineage: {
-+			uses_mtk_hardware: {
-+             cppflags: ["-DMTK_HARDWARE"],
-+            },
-+            uses_legacy_mtk_av_blob: {
-+             cppflags: ["-DUSE_LEGACY_MTK_AV_BLOB"],
-+            },
-+        },
-+    },
-+
      sanitize: {
-         misc_undefined: [
-             "unsigned-integer-overflow",
-@@ -175,6 +193,10 @@ cc_library_shared {
+@@ -175,6 +178,10 @@ cc_library_shared {
          "mtkaudio_stubs.cpp",
      ],
  
@@ -1238,24 +1212,15 @@ index 0422ad0..9135597 100644
      shared_libs: [
          "libui",
          "liblog",
-@@ -229,6 +251,17 @@ cc_library_shared {
+@@ -227,6 +234,8 @@ cc_library_shared {
+         "-Werror",
+         "-Wno-error=deprecated-declarations",
          "-Wall",
++        "-DMTK_HARDWARE",
++        "-DUSE_LEGACY_MTK_AV_BLOB",
      ],
  
-+    product_variables: {
-+        lineage: {
-+			uses_mtk_hardware: {
-+             cppflags: ["-DMTK_HARDWARE"],
-+            },
-+            uses_legacy_mtk_av_blob: {
-+             cppflags: ["-DUSE_LEGACY_MTK_AV_BLOB"],
-+            },
-+        },
-+    },
-+
      sanitize: {
-         misc_undefined: [
-             "unsigned-integer-overflow",
 diff --git a/media/libmedia/MediaProfiles.cpp b/media/libmedia/MediaProfiles.cpp
 index 0137195..2a7db97 100644
 --- a/media/libmedia/MediaProfiles.cpp
@@ -1439,7 +1404,7 @@ index 74bfc76..b22891e 100644
                              rect.nTop < 0 ||
                              rect.nLeft + rect.nWidth > videoDef->nFrameWidth ||
 diff --git a/media/libstagefright/Android.bp b/media/libstagefright/Android.bp
-index be554d9..5e02aac 100644
+index be554d9..f7dc4fb 100644
 --- a/media/libstagefright/Android.bp
 +++ b/media/libstagefright/Android.bp
 @@ -133,6 +133,8 @@ cc_library_shared {
@@ -1451,25 +1416,19 @@ index be554d9..5e02aac 100644
      ],
  
      cflags: [
-@@ -148,6 +150,18 @@ cc_library_shared {
+@@ -146,7 +148,11 @@ cc_library_shared {
+     product_variables: {
+         debuggable: {
              // enable experiments only in userdebug and eng builds
-             cflags: ["-DENABLE_STAGEFRIGHT_EXPERIMENTS"],
+-            cflags: ["-DENABLE_STAGEFRIGHT_EXPERIMENTS"],
++            cflags: [
++                "-DENABLE_STAGEFRIGHT_EXPERIMENTS",
++                "-DMTK_HARDWARE",
++                "-DUSE_LEGACY_MTK_AV_BLOB",
++            ],
          },
-+        lineage: {
-+            has_legacy_camera_hal1: {
-+                // enable legacy camera HAL1 product option
-+                //cflags: ["-DCAMCORDER_GRALLOC_SOURCE"],
-+            },
-+            uses_mtk_hardware: {
-+                cppflags: ["-DMTK_HARDWARE"],
-+            },
-+            uses_legacy_mtk_av_blob: {
-+                cppflags: ["-DUSE_LEGACY_MTK_AV_BLOB"],
-+            },
-+        },
      },
  
-     sanitize: {
 diff --git a/media/libstagefright/CameraSource.cpp b/media/libstagefright/CameraSource.cpp
 index 399199e..e4335ea 100644
 --- a/media/libstagefright/CameraSource.cpp
@@ -1574,27 +1533,17 @@ index 7786c4d..a90675e 100644
  
  off64_t MPEG4Writer::addMultipleLengthPrefixedSamples_l(MediaBuffer *buffer) {
 diff --git a/media/libstagefright/colorconversion/Android.bp b/media/libstagefright/colorconversion/Android.bp
-index f8666f4..00e5221 100644
+index f8666f4..80360a9 100644
 --- a/media/libstagefright/colorconversion/Android.bp
 +++ b/media/libstagefright/colorconversion/Android.bp
-@@ -9,8 +9,17 @@ cc_library_static {
+@@ -9,6 +9,7 @@ cc_library_static {
      include_dirs: [
          "frameworks/native/include/media/openmax",
          "frameworks/av/media/libstagefright/colorconversion/inc",
 +        "frameworks/av/include/media/stagefright/dpframework",
      ],
  
-+    product_variables: {
-+        lineage: {
-+            uses_mtk_hardware: {
-+             cppflags: ["-DMTK_HARDWARE"],
-+            },
-+        },
-+    },
-+
      shared_libs: [
-         "libui",
-         "libnativewindow",
 diff --git a/media/libstagefright/colorconversion/ColorConverter.cpp b/media/libstagefright/colorconversion/ColorConverter.cpp
 index 389b78e..e235c52 100644
 --- a/media/libstagefright/colorconversion/ColorConverter.cpp
@@ -1659,33 +1608,6 @@ index 389b78e..e235c52 100644
  
          default:
          {
-diff --git a/media/libstagefright/foundation/Android.bp b/media/libstagefright/foundation/Android.bp
-index ebeb0e1..b456911 100644
---- a/media/libstagefright/foundation/Android.bp
-+++ b/media/libstagefright/foundation/Android.bp
-@@ -19,6 +19,14 @@ cc_library_shared {
-         "include/media/stagefright/foundation",
-     ],
- 
-+    product_variables: {
-+        lineage: {
-+            uses_mtk_hardware: {
-+             cppflags: ["-DMTK_HARDWARE"],
-+            },
-+        },
-+    },
-+
-     header_libs: [
-         "libhardware_headers",
-         "libstagefright_foundation_headers",
-@@ -37,7 +45,6 @@ cc_library_shared {
-         "-Wno-multichar",
-         "-Werror",
-         "-Wall",
--        "-DMTK_HARDWARE",
-     ],
- 
-     shared_libs: [
 diff --git a/media/libstagefright/include/media/stagefright/ACodec.h b/media/libstagefright/include/media/stagefright/ACodec.h
 index 424246d..6a3ceff 100644
 --- a/media/libstagefright/include/media/stagefright/ACodec.h
@@ -1714,52 +1636,34 @@ index d6149c0..b0fedf2 100644
      virtual ~CameraSource();
  
 diff --git a/media/libstagefright/omx/Android.bp b/media/libstagefright/omx/Android.bp
-index 1a00fb9..2577a82 100644
+index 1a00fb9..322503e 100644
 --- a/media/libstagefright/omx/Android.bp
 +++ b/media/libstagefright/omx/Android.bp
-@@ -87,6 +87,18 @@ cc_library_shared {
-             uses_qcom_bsp_legacy: {
-                 cppflags: ["-DQCOM_BSP_LEGACY"],
-             },
-+            uses_media_extensions: {
-+            cflags: ["-DUSES_MEDIA_EXTENSIONS"],
-+			},
-+			has_legacy_camera_hal1: {
-+				cflags: ["-DHAS_LEGACY_CAMERA_HAL1"],
-+			},
-+			uses_mtk_hardware: {
-+             cppflags: ["-DMTK_HARDWARE"],
-+            },
-+            uses_legacy_mtk_av_blob: {
-+             cppflags: ["-DUSE_LEGACY_MTK_AV_BLOB"],
-+            },
-         },
-     },
+@@ -77,6 +77,9 @@ cc_library_shared {
+         "-Wall",
+         "-Wno-unused-parameter",
+         "-Wno-documentation",
++        "-DMTK_HARDWARE",
++        "-DUSE_LEGACY_MTK_AV_BLOB",
++        "-DHAS_LEGACY_CAMERA_HAL1",
+     ],
  
-@@ -125,6 +137,30 @@ cc_library_shared {
+     product_variables: {
+@@ -125,6 +128,21 @@ cc_library_shared {
      export_shared_lib_headers: [
          "libmedia_omx",
      ],
++
++    cflags: [
++        "-DMTK_HARDWARE",
++        "-DUSE_LEGACY_MTK_AV_BLOB",
++        "-DHAS_LEGACY_CAMERA_HAL1",
++    ],
 +
 +    product_variables: {
 +        lineage: {
 +            needs_legacy_camera_hal1_dyn_native_handle: {
 +                cppflags: ["-DNEEDS_LEGACY_CAMERA_HAL1_DYN_NATIVE_HANDLE"],
-+            },
-+            uses_qcom_bsp_legacy: {
-+                cppflags: ["-DQCOM_BSP_LEGACY"],
-+            },
-+            uses_media_extensions: {
-+            cflags: ["-DUSES_MEDIA_EXTENSIONS"],
-+			},
-+			has_legacy_camera_hal1: {
-+				cflags: ["-DHAS_LEGACY_CAMERA_HAL1"],
-+			},
-+			uses_mtk_hardware: {
-+             cppflags: ["-DMTK_HARDWARE"],
-+            },
-+            uses_legacy_mtk_av_blob: {
-+             cppflags: ["-DUSE_LEGACY_MTK_AV_BLOB"],
 +            },
 +        },
 +    },
