@@ -1540,7 +1540,7 @@ index f8666f4..80360a9 100644
      include_dirs: [
          "frameworks/native/include/media/openmax",
          "frameworks/av/media/libstagefright/colorconversion/inc",
-+        "frameworks/av/include/media/stagefright/dpframework",
++        "frameworks/av/media/libstagefright/include/media/stagefright/dpframework",
      ],
  
      shared_libs: [
