@@ -169,7 +169,7 @@ BOARD_SEPOLICY_DIRS += $(DEVICE_PATH)/sepolicy
 SELINUX_IGNORE_NEVERALLOWS := true
 
 # Build kernel without kernel sources
-$(shell mkdir -p $(OUT)/obj/KERNEL_OBJ/usr)
+$(shell mkdir -p $(OUT_DIR)/obj/KERNEL_OBJ/usr)
 
 #
 # Oreo board
