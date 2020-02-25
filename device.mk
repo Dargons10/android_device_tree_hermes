@@ -33,6 +33,10 @@ TARGET_OTA_ASSERT_DEVICE := hermes
 # Compile apps
 PRODUCT_PACKAGES += Snap
 
+# TextClassifier
+PRODUCT_PACKAGES += \
+    textclassifier.smartselection.bundle1
+
 # Shim symbols
 PRODUCT_PACKAGES += \
     libshim_bionic \
@@ -113,6 +117,7 @@ PRODUCT_PACKAGES += \
     libtinyalsa \
     libtinycompress \
     libtinyxml \
+    libtinyxml2 \
     tinymix
 
 # XML Parser
